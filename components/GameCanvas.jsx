@@ -456,14 +456,13 @@ export default GameCanvas;
 */
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { drawMap } from "@/utils/GameMap";
-import { DiningRoomWalls } from "@/utils/Walls";
+import { DiningRoomWalls, GreenKitchenWalls } from "@/utils/Walls";
 import { getDrawables, drawSprites } from "@/utils/Sprite";
 import KeyboardMovement from "@/utils/KeyBoard";
-import TextMessage from "./TextMessage";
-import { checkInteraction } from "@/utils/HeroSprite";
 import NpcInteraction from "@/utils/NpcInteraction";
+import { createNpcData } from "@/utils/Sprite";
 
 const loadImage = (src) => {
   return new Promise((resolve, reject) => {
@@ -480,8 +479,11 @@ const GameCanvas = () => {
   const [direction, setDirection] = useState("down");
   const [isMoving, setIsMoving] = useState(false);
   const [images, setImages] = useState(null);
+  const [newNpcImages, setNewNpcImages] = useState(null);
+  const [npcData, setNpcData] = useState([]);
+  const [walls, setWalls] = useState(DiningRoomWalls);
+
   const tileSize = 16;
-  const walls = DiningRoomWalls;
 
   useEffect(() => {
     const loadImages = async () => {
@@ -493,11 +495,6 @@ const GameCanvas = () => {
         const npc1 = await loadImage("/images/characters/people/alola.png");
         const npc2 = await loadImage("/images/characters/people/sabrina.png");
         const npc3 = await loadImage("/images/characters/people/grunt.png");
-        const npc4 = await loadImage("/images/characters/people/kalos.png");
-        const npc5 = await loadImage("/images/characters/people/akira.png");
-        const npc6 = await loadImage("/images/characters/people/burnet.png");
-        const npc7 = await loadImage("/images/characters/people/steven.png");
-        const npc8 = await loadImage("/images/characters/people/drayden.png");
         setImages({
           lowerMap,
           upperMap,
@@ -506,11 +503,6 @@ const GameCanvas = () => {
           npc1,
           npc2,
           npc3,
-          npc4,
-          npc5,
-          npc6,
-          npc7,
-          npc8,
         });
       } catch (error) {
         console.error("Error loading images:", error);
@@ -519,6 +511,12 @@ const GameCanvas = () => {
 
     loadImages();
   }, []);
+
+  useEffect(() => {
+    if (images) {
+      setNpcData(createNpcData.diningRoom(images));
+    }
+  }, [images]);
 
   KeyboardMovement({
     playerPosition,
@@ -529,6 +527,7 @@ const GameCanvas = () => {
     setIsMoving,
     walls,
   });
+
   useEffect(() => {
     if (!images) return;
 
@@ -541,32 +540,161 @@ const GameCanvas = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawStaticElements(ctx, playerPosition);
 
-       const drawables = getDrawables(
+      const drawables = getDrawables(
         playerPosition,
         direction,
         isMoving,
-        images
-      ); 
+        images,
+        npcData
+      );
       drawSprites(ctx, drawables, playerPosition, tileSize, canvas);
 
       requestAnimationFrame(drawFrame);
     };
 
     drawFrame();
-  }, [playerPosition, direction, isMoving, images]);
+  }, [playerPosition, direction, isMoving, images, npcData, tileSize]);
 
-  const drawStaticElements = (ctx, playerPosition) => {
-    const cameraOffset = {
-      x:
-        playerPosition.x * tileSize -
-        (canvasRef.current.width / 2 - tileSize / 2),
-      y:
-        playerPosition.y * tileSize -
-        (canvasRef.current.height / 2 - tileSize / 2),
+  const drawStaticElements = useCallback(
+    (ctx, playerPosition) => {
+      const cameraOffset = {
+        x:
+          playerPosition.x * tileSize -
+          (canvasRef.current.width / 2 - tileSize / 2),
+        y:
+          playerPosition.y * tileSize -
+          (canvasRef.current.height / 2 - tileSize / 2),
+      };
+
+      drawMap(ctx, images.lowerMap, images.upperMap, cameraOffset, images);
+    },
+    [images, tileSize]
+  );
+
+  const handleNpcDataUpdate = useCallback((updatedNpcData) => {
+    setNpcData(updatedNpcData);
+    console.log("new npc data", updatedNpcData);
+  }, []);
+
+  useEffect(() => {
+    const checkForSceneChange = () => {
+      const doorPosition = { x: 7, y: 4 };
+
+      if (
+        playerPosition.x === doorPosition.x &&
+        playerPosition.y === doorPosition.y
+      ) {
+        handleSceneChange();
+      }
     };
 
-    drawMap(ctx, images.lowerMap, images.upperMap, cameraOffset, images);
+    checkForSceneChange();
+  }, [playerPosition]);
+
+  const fadeOutAndLoadNewMap = async (newMapDetails) => {
+    console.log("Fading out and loading new map...");
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+
+    for (let i = 1; i <= 10; i++) {
+      ctx.globalAlpha = 1 - i * 0.1;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+
+    console.log("Fading out completed.");
+
+    await loadNewMap(newMapDetails);
+
+    for (let i = 1; i <= 10; i++) {
+      ctx.globalAlpha = i * 0.1;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+
+    console.log("Fading in completed.");
   };
+
+  const loadNewMap = async (newMapDetails) => {
+    console.log("Loading new map...");
+
+    try {
+      const lowerMap = await loadImage(newMapDetails.images.lowerMap);
+      const upperMap = await loadImage(newMapDetails.images.upperMap);
+      const npc1 = await loadImage(newMapDetails.images.npc1);
+      const npc2 = await loadImage(newMapDetails.images.npc2);
+      const npc3 = await loadImage(newMapDetails.images.npc3);
+      const hero = await loadImage("/images/characters/people/guzma.png");
+      const shadow = await loadImage("/images/characters/shadow.png");
+
+      const newImages = {
+        lowerMap,
+        upperMap,
+        hero,
+        shadow,
+        npc1,
+        npc2,
+        npc3,
+      };
+
+      console.log("New images loaded:", newImages);
+
+      setImages(newImages);
+      setNewNpcImages(newImages);
+      console.log();
+      console.log("New map images set.");
+
+      setWalls(newMapDetails.walls);
+      console.log("Walls set for new map.");
+
+      const newNpcData = createNpcData[newMapDetails.npcDataKey](newImages);
+      console.log("New NPC data created:", newNpcData);
+      setNpcData(newNpcData);
+      console.log("NPC data set for new map:", newNpcData);
+
+      setPlayerPosition(newMapDetails.playerStartPosition);
+      console.log(
+        "Player position set for new map:",
+        newMapDetails.playerStartPosition
+      );
+    } catch (error) {
+      console.error("Error loading new map details:", error);
+      throw error;
+    }
+  };
+
+  const handleSceneChange = () => {
+    console.log("Handling scene change...");
+
+    const newMapDetails = {
+      images: {
+        lowerMap: "/images/maps/GreenKitchenLower.png",
+        upperMap: "/images/maps/GreenKitchenUpper.png",
+        npc1: "/images/characters/people/burnet.png",
+        npc2: "/images/characters/people/cyrus.png",
+        npc3: "/images/characters/people/drayden.png",
+      },
+      walls: GreenKitchenWalls,
+      npcDataKey: "newMap",
+      playerStartPosition: { x: 5, y: 12 },
+    };
+
+    console.log("New map details:", newMapDetails);
+
+    fadeOutAndLoadNewMap(newMapDetails)
+      .then(() => {
+        setNpcData(createNpcData[newMapDetails.npcDataKey](newNpcImages));
+        console.log(newNpcImages);
+      })
+      .catch((error) => {
+        console.error("Error while loading new map:", error);
+      });
+  };
+
+  useEffect(() => {
+    if (newNpcImages) {
+      setNpcData(createNpcData.newMap(newNpcImages));
+    }
+  }, [newNpcImages]);
 
   return (
     <div className="game-container flex justify-center items-center h-screen flex-col lg:flex-row relative mx-auto">
@@ -577,7 +705,14 @@ const GameCanvas = () => {
         className="border border-1 border-neutral-950 w-[90vw] h-[90vh] bg-neutral-400"
         ref={canvasRef}
       ></canvas>
-      <NpcInteraction playerPosition={playerPosition} direction={direction} />
+      <NpcInteraction
+        playerPosition={playerPosition}
+        direction={direction}
+        setDirection={setDirection}
+        npcData={npcData}
+        setNpcData={setNpcData}
+        onNpcDataUpdate={handleNpcDataUpdate}
+      />
     </div>
   );
 };

@@ -183,45 +183,19 @@ export const isValidMove = (position, walls) => {
   }
   const maxX = 20;
   const maxY = 20;
-  console.log(position);
-
   return position.x >= 0 && position.x < maxX && position.y >= 0 && position.y < maxY ;
 };
 
-/* 
 export const checkInteraction = (playerPosition, npcPositions, direction) => {
-  const adjacentPositions = [
-    { x: playerPosition.x, y: playerPosition.y - 1 }, // Up
-    { x: playerPosition.x, y: playerPosition.y + 1 }, // Down
-    { x: playerPosition.x - 1, y: playerPosition.y }, // Left
-    { x: playerPosition.x + 1, y: playerPosition.y }, // Right
-  ];
-
   for (const npc of npcPositions) {
-    for (const position of adjacentPositions) {
-      if (npc.x === position.x && npc.y === position.y) {
-        return true; // Player is adjacent to an NPC
-      }
+    if (
+      (direction === "up" && playerPosition.x === npc.x && playerPosition.y - 1 === npc.y) ||
+      (direction === "down" && playerPosition.x === npc.x && playerPosition.y + 1 === npc.y) ||
+      (direction === "left" && playerPosition.x - 1 === npc.x && playerPosition.y === npc.y) ||
+      (direction === "right" && playerPosition.x + 1 === npc.x && playerPosition.y === npc.y)
+    ) {
+      return npc; // Return the interacting NPC
     }
   }
-
-  return false;
-}; */
-export const checkInteraction = (playerPosition, npcPositions, playerDirection) => {
-  const adjacentPositions = [
-    { x: playerPosition.x, y: playerPosition.y - 1 }, // Up
-    { x: playerPosition.x, y: playerPosition.y + 1 }, // Down
-    { x: playerPosition.x - 1, y: playerPosition.y }, // Left
-    { x: playerPosition.x + 1, y: playerPosition.y }, // Right
-  ];
-
-  for (const npc of npcPositions) {
-    for (const position of adjacentPositions) {
-      if (npc.x === position.x && npc.y === position.y) {
-        return npc; // Return the NPC object
-      }
-    }
-  }
-
   return null; // No interaction
 };

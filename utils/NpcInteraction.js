@@ -33,32 +33,58 @@ const NpcInteraction = ({ playerPosition, direction, drawables }) => {
 export default NpcInteraction;
  */
 // utils/NpcInteraction.js
-
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { checkInteraction } from "./HeroSprite";
 import TextMessage from "@/components/TextMessage";
 
-const NpcInteraction = ({ playerPosition, direction }) => {
+const NpcInteraction = ({
+  playerPosition,
+  direction,
+  setNpcData,
+  npcData,
+  onNpcDataUpdate,
+}) => {
   const [showTextMessage, setShowTextMessage] = useState(false);
+  const [npcMessage, setNpcMessage] = useState("");
+  const [originalDirection, setOriginalDirection] = useState(direction);
+  const [originalNpcData, setOriginalNpcData] = useState([...npcData]);
 
-  const [currentNpc, setCurrentNpc] = useState(null); 
   const handleTextMessageComplete = () => {
     setShowTextMessage(false);
+    setNpcData(originalNpcData); 
+    console.log("original",originalNpcData);
   };
+
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.key === "Enter") {
-        const npcPositions = [
-          { x: 2, y: 4 },
-          { x: 9, y: 5 },
-          { x: 8, y: 9 },
-        ];
+        const interactingNpc = checkInteraction(
+          playerPosition,
+          npcData,
+          direction
+        );
 
-        if (checkInteraction(playerPosition, npcPositions, direction)) {
-          // Handle interaction logic here
+        if (interactingNpc) {
+          setNpcMessage(interactingNpc.text);
           setShowTextMessage(true);
-          console.log("Player interacted with an NPC!");
-          console.log(showTextMessage);
+          // Save original direction and NPC data
+          setOriginalDirection(direction);
+          setOriginalNpcData(npcData.map((npc) => ({ ...npc })));
+
+          // Update NPC direction in NPC data
+          const updatedNpcData = npcData.map((npc) => {
+            if (npc.x === interactingNpc.x && npc.y === interactingNpc.y) {
+              npc.npcDirection = getNpcDirection(
+                interactingNpc,
+                playerPosition
+              );
+            }
+            return npc;
+          });
+
+          // Update NPC data in the parent component (GameCanvas)
+          console.log("updated",updatedNpcData);
+          setNpcData(updatedNpcData);
         }
       }
     };
@@ -67,19 +93,29 @@ const NpcInteraction = ({ playerPosition, direction }) => {
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [playerPosition, direction, showTextMessage]);
+  }, [playerPosition, direction, showTextMessage, npcData, setNpcData]);
+
+  // Function to determine NPC direction based on player interaction
+  const getNpcDirection = (interactingNpc, playerPosition) => {
+    if (interactingNpc.x > playerPosition.x) {
+      return "left";
+    } else if (interactingNpc.x < playerPosition.x) {
+      return "right";
+    } else if (interactingNpc.y > playerPosition.y) {
+      return "up";
+    } else if (interactingNpc.y < playerPosition.y) {
+      return "down";
+    }
+    return "down"; 
+  };
 
   return (
     <>
       {showTextMessage && (
-        <TextMessage
-          text="Lorem ipsum dolor sit amet, consectetur adipisicing elit. Minima ratione eius aliquam sequi, autem odit illo. Qui maxime molestiae necessitatibus quaerat voluptate magnam ducimus vel? Recusandae mollitia ad laborum at?Lorem ipsum, dolor sit amet consectetur adipisicing elit. Consequuntur sapiente est distinctio labore optio corrupti ullam. Similique at, id quibusdam ratione nesciunt in cumque veniam optio. Cum ratione ex deserunt."
-          onComplete={handleTextMessageComplete}
-        />
+        <TextMessage text={npcMessage} onComplete={handleTextMessageComplete} />
       )}
     </>
   );
 };
 
 export default NpcInteraction;
- 

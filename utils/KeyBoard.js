@@ -83,7 +83,7 @@ const KeyboardMovement = ({
     }
     const maxX = 20;
     const maxY = 20;
-
+console.log(position)
     return (
       position.x >= 0 &&
       position.x < maxX &&
